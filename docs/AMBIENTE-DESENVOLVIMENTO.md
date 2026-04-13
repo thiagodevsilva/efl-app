@@ -109,7 +109,7 @@ cd /caminho/para/efl-brazil/efl-app
 EXPO_PUBLIC_API_URL=http://192.168.0.42:8085 npm run start
 ```
 
-> **CORS na API:** o Nest usa `FRONT_URL` para CORS. Chamadas vindas do **React Native / Expo Go** podem não se comportar como um browser; se a API bloquear requisições do app, será preciso ajustar CORS ou autenticação na `efl-api` quando integrar.
+> **CORS na API:** o `FRONT_URL` lista origens **web** (browser). Requisições **sem header `Origin`** (Expo Go / app nativo) são aceitas. O header **`X-EFL-Mobile`** está liberado no CORS. Reinicie a API após mudar `FRONT_URL`.
 
 > Se usar **emulador Android** no Windows apontando para API no WSL, `127.0.0.1` no emulador **não** é o WSL. Nesse caso use o IP da máquina Windows na rede, ou `10.0.2.2` apontando para a porta exposta no host, conforme sua configuração de rede entre WSL e Windows.
 
@@ -273,6 +273,35 @@ npx tsc --noEmit
 2. No `.env`, use o **IPv4 do Windows no adaptador da internet** (Wi‑Fi ou Ethernet física). No WSL você pode rodar `ipconfig.exe | findstr IPv4` (ou abrir `ipconfig` no CMD do Windows). Formato típico: `http://192.168.x.x:8085` (ajuste a porta ao `PORT` da API).
 3. Confirme que o Nest escuta em **`0.0.0.0`** (não só `127.0.0.1`). No WSL: `ss -tlnp | grep 8085` — deve aparecer `0.0.0.0:8085` (o projeto `efl-api` já faz `listen(..., '0.0.0.0')`).
 4. Se o celular não conectar mesmo com o IP certo: verifique **Firewall do Windows** (regra de entrada **TCP** na porta da API) e, se necessário, encaminhamento de porta / **modo de rede espelhada** do WSL2 — [Networking no WSL](https://learn.microsoft.com/pt-br/windows/wsl/networking).
+
+### API no WSL + login no celular (“sem conexão” com `http://192.168…:8085`)
+
+O Nest roda **dentro do WSL**. O IP `192.168.x.x` é o **Windows** na Wi‑Fi. Por padrão, o Windows **não repassa** o tráfego da porta **8085** da LAN até o processo no WSL — o app no celular falha com erro de rede.
+
+**Solução rápida:** abra o **Windows PowerShell como administrador** (botão direito no menu Iniciar → “Executar como administrador”). O `netsh` **só funciona elevado**.
+
+**Ordem importa:** primeiro entre na pasta do script; **só depois** rode `.\forward-api-from-windows.ps1`. Se você estiver em `C:\Windows\system32` e rodar `.\forward-api-from-windows.ps1` sem `cd`, o PowerShell **não acha** o arquivo (ele não está nessa pasta).
+
+Repo no WSL (troque `thiagows72` pelo seu usuário Linux, se for outro):
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+cd "\\wsl$\Ubuntu\home\thiagows72\efl-brazil\efl-api\scripts"
+.\forward-api-from-windows.ps1
+```
+
+**Alternativa em uma linha** (também como Admin), sem `cd`:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+& "\\wsl$\Ubuntu\home\thiagows72\efl-brazil\efl-api\scripts\forward-api-from-windows.ps1"
+```
+
+Se o Windows reclamar de script em caminho de rede (`\\wsl$\...`), copie `forward-api-from-windows.ps1` para `C:\Temp\`, abra o PowerShell **como Admin**, `cd C:\Temp` e rode `.\forward-api-from-windows.ps1`.
+
+O script cria **portproxy** (`0.0.0.0:8085` → IP do WSL:8085) e uma regra de **firewall** para TCP 8085. Depois teste no Windows: `Invoke-WebRequest http://127.0.0.1:8085/ -UseBasicParsing`.
+
+Reexecute o script quando o **IP do WSL** mudar (ex.: após `wsl --shutdown`). Alternativa: **rede espelhada** do WSL2 ou expor a API com **ngrok** e usar a URL HTTPS no `EXPO_PUBLIC_API_URL`.
 
 ### Android / Expo Go: `java.io.IOException: Failed to download remote update`
 
