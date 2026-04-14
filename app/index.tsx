@@ -1,17 +1,13 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
 
+import { BrandedBootScreen } from "../components/BrandedBootScreen";
 import { useSessionStore } from "../store/useSessionStore";
 
 export default function Index() {
   const { isHydrated, accessToken } = useSessionStore();
 
   if (!isHydrated) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <BrandedBootScreen message="A recuperar a sua sessão…" />;
   }
 
   if (!accessToken) {

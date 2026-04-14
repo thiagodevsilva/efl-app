@@ -3,7 +3,6 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BrandedBootScreen } from "../../components/BrandedBootScreen";
 import {
   EXERCISE_LEVEL_LABELS,
   EXERCISE_LEVELS,
@@ -162,12 +162,7 @@ export default function ExercisesScreen() {
   );
 
   if (query.isPending && !query.data) {
-    return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
-        <ActivityIndicator size="large" color="#4f46e5" />
-        <Text className="mt-4 text-slate-600">Carregando listas…</Text>
-      </View>
-    );
+    return <BrandedBootScreen message="A carregar as suas listas de exercícios…" />;
   }
 
   if (query.isError) {

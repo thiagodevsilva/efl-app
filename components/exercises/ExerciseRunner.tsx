@@ -1,18 +1,10 @@
 import { isAxiosError } from "axios";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Linking,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BrandedBootScreen } from "../BrandedBootScreen";
 import {
   exerciseMediaUrl,
   getExerciseList,
@@ -152,14 +144,7 @@ export function ExerciseRunner({ listId }: Props) {
     totalQuestions > 0 ? `${answeredCount} de ${totalQuestions} questões acertadas` : "";
 
   if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-slate-100" edges={["top"]}>
-        <View className="flex-1 items-center justify-center px-6">
-          <ActivityIndicator size="large" color="#4f46e5" />
-          <Text className="mt-4 text-center text-slate-600">Preparando lista…</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <BrandedBootScreen message="A preparar a lista e as questões…" />;
   }
 
   if (error && !attemptId) {
