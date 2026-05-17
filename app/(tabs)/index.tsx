@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +24,7 @@ import {
   type ExerciseList,
   type ExerciseListLevel,
 } from "../../services/exercises";
+import { listMyCourses, type MyClassItem } from "../../services/classroom";
 
 const PAGE_SIZE = 12;
 
@@ -87,14 +89,33 @@ export default function ExercisesScreen() {
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState(1);
   const [level, setLevel] = useState<LevelFilter>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterOnlyMyClass, setFilterOnlyMyClass] = useState(false);
+  const [classId, setClassId] = useState("");
+
+  const classesQuery = useQuery({
+    queryKey: ["my-classes-for-exercises"],
+    queryFn: listMyCourses,
+  });
+
+  const activeClasses = useMemo(
+    () =>
+      (classesQuery.data?.classes ?? []).filter(
+        (c: MyClassItem) => (c.enrollmentStatus ?? "ACTIVE") === "ACTIVE",
+      ),
+    [classesQuery.data?.classes],
+  );
 
   const query = useQuery({
-    queryKey: ["exercise-lists", page, level],
+    queryKey: ["exercise-lists", page, level, searchQuery, filterOnlyMyClass, classId],
     queryFn: () =>
       listExerciseLists({
         page,
         limit: PAGE_SIZE,
         ...(level ? { level } : {}),
+        ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
+        ...(filterOnlyMyClass && classId ? { classId } : {}),
+        ...(filterOnlyMyClass && !classId ? { onlyMyClasses: true } : {}),
       }),
     placeholderData: keepPreviousData,
   });
@@ -115,10 +136,85 @@ export default function ExercisesScreen() {
         Escolha uma lista por tema. Cada questão aparece uma por vez; se errar, ela volta
         para o final da fila — igual ao site.
       </Text>
+      <TextInput
+        className="mx-4 mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-900"
+        placeholder="Buscar por título ou tema..."
+        value={searchQuery}
+        onChangeText={(t) => {
+          setSearchQuery(t);
+          setPage(1);
+        }}
+        autoCapitalize="none"
+        autoCorrect={false}
+        clearButtonMode="while-editing"
+      />
+      <Pressable
+        className="mx-4 mt-3 flex-row items-center gap-2"
+        onPress={() => {
+          setFilterOnlyMyClass((v) => !v);
+          if (filterOnlyMyClass) setClassId("");
+          setPage(1);
+        }}
+      >
+        <View
+          className={`h-5 w-5 items-center justify-center rounded border ${
+            filterOnlyMyClass ? "border-indigo-600 bg-indigo-600" : "border-slate-300 bg-white"
+          }`}
+        >
+          {filterOnlyMyClass ? <Text className="text-xs text-white">✓</Text> : null}
+        </View>
+        <Text className="text-sm text-slate-700">Ver apenas exercícios da minha turma</Text>
+      </Pressable>
+      {filterOnlyMyClass ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mt-3 pl-4"
+          contentContainerStyle={{ paddingRight: 16, gap: 8 }}
+        >
+          <Pressable
+            onPress={() => {
+              setClassId("");
+              setPage(1);
+            }}
+            className={`rounded-full px-4 py-2 ${
+              classId === "" ? "bg-slate-800" : "border border-slate-200 bg-white"
+            }`}
+          >
+            <Text
+              className={`text-sm font-medium ${classId === "" ? "text-white" : "text-slate-700"}`}
+            >
+              Todas as minhas turmas
+            </Text>
+          </Pressable>
+          {activeClasses.map((c) => {
+            const selected = classId === c.id;
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => {
+                  setClassId(c.id);
+                  setPage(1);
+                }}
+                className={`rounded-full px-4 py-2 ${
+                  selected ? "bg-indigo-700" : "border border-slate-200 bg-white"
+                }`}
+              >
+                <Text
+                  className={`text-sm font-medium ${selected ? "text-white" : "text-slate-700"}`}
+                  numberOfLines={1}
+                >
+                  {c.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="mt-5 pl-4"
+        className="mt-3 pl-4"
         contentContainerStyle={{ paddingRight: 16, gap: 8 }}
       >
         <Pressable
@@ -223,7 +319,13 @@ export default function ExercisesScreen() {
         ListEmptyComponent={
           <View className="mx-4 mt-4 rounded-2xl border border-slate-200 bg-white p-8">
             <Text className="text-center text-base text-slate-600">
-              Nenhuma lista disponível neste nível no momento.
+              {filterOnlyMyClass && activeClasses.length === 0
+                ? "Você não está em turmas ativas com exercícios vinculados."
+                : filterOnlyMyClass && classId
+                  ? "Nenhuma lista de exercícios para esta turma no momento."
+                  : searchQuery.trim()
+                    ? "Nenhuma lista encontrada para esta busca."
+                    : "Nenhuma lista disponível no momento."}
             </Text>
           </View>
         }

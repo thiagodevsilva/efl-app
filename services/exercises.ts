@@ -1,6 +1,5 @@
-import { API_BASE_URL } from "../constants/config";
-
 import { api } from "./api";
+import { uploadsPublicUrl } from "./mediaUrl";
 
 export type ExerciseListQuestionType =
   | "FREE_TEXT"
@@ -60,20 +59,15 @@ export type ExerciseListsMeta = {
 
 /** URL pública para mídia da lista ou da questão (path relativo a `uploads/`). */
 export function exerciseMediaUrl(path: string | null | undefined): string {
-  if (!path) return "";
-  const p = String(path).trim();
-  if (/^https?:\/\//i.test(p)) return p;
-  const rel = p.replace(/^\/+/, "");
-  const prefix = rel.startsWith("uploads/") ? "" : "uploads/";
-  const base = API_BASE_URL.replace(/\/$/, "");
-  const slash = base.endsWith("/") ? "" : "/";
-  return `${base}${slash}${prefix}${rel}`;
+  return uploadsPublicUrl(path);
 }
 
 export async function listExerciseLists(params: {
   theme?: string;
   q?: string;
   level?: ExerciseListLevel;
+  classId?: string;
+  onlyMyClasses?: boolean;
   page?: number;
   limit?: number;
 } = {}) {
