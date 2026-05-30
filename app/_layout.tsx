@@ -2,7 +2,7 @@ import "react-native-gesture-handler";
 import "../global.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -15,6 +15,30 @@ import { useSessionStore } from "../store/useSessionStore";
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const queryClient = new QueryClient();
+
+function AuthNavigationGuard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isHydrated, accessToken } = useSessionStore((s) => ({
+    isHydrated: s.isHydrated,
+    accessToken: s.accessToken,
+  }));
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const inAuthGroup = pathname.startsWith("/(auth)");
+    if (!accessToken && !inAuthGroup) {
+      router.replace("/(auth)/login");
+      return;
+    }
+    if (accessToken && inAuthGroup) {
+      router.replace("/(tabs)");
+    }
+  }, [accessToken, isHydrated, pathname, router]);
+
+  return null;
+}
 
 function SessionBootstrap() {
   const hydrateFromSecureStore = useSessionStore(
@@ -38,6 +62,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <SessionBootstrap />
+          <AuthNavigationGuard />
           <StatusBar style="dark" />
           <Stack
             screenOptions={{

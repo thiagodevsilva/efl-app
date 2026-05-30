@@ -22,6 +22,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="classrooms"
+        options={{
+          title: "Aulas",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="school-outline" size={size ?? 24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Perfil",

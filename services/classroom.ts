@@ -34,6 +34,17 @@ export type ClassLessonForClassroom = LessonForClassroom & {
   description?: string | null;
   imagePath?: string | null;
   links?: { name?: string; url: string }[];
+  moduleId?: string | null;
+  scheduledAt?: string | null;
+  isReleased?: boolean;
+};
+
+export type ClassModuleForClassroom = {
+  id: string;
+  title: string;
+  order: number;
+  description?: string | null;
+  lessons: ClassLessonForClassroom[];
 };
 
 export type ClassClassroom = {
@@ -44,9 +55,11 @@ export type ClassClassroom = {
   startDate?: string | null;
   endDate?: string | null;
   hasOnlineClasses?: boolean;
+  hasScheduledLessons?: boolean;
   onlineDays?: string[];
   onlineTime?: string | null;
   attachments: LessonAttachment[];
+  modules?: ClassModuleForClassroom[];
   lessons: ClassLessonForClassroom[];
 };
 
