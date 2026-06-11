@@ -58,7 +58,9 @@ export type ExerciseListAttemptStart = {
   attemptId: string;
   totalQuestions: number;
   queueLength: number;
+  correctCount: number;
   currentQuestion: ExerciseListQuestion;
+  resumed?: boolean;
 };
 
 export type ExerciseListsMeta = {

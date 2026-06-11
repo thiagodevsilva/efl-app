@@ -56,7 +56,6 @@ export function ExerciseRunner({ listId }: Props) {
     setPendingNextQuestion(null);
     setLastSubmittedOptionId(null);
     setCompleted(false);
-    setAnsweredCount(0);
     try {
       const [meta, start] = await Promise.all([
         getExerciseList(listId),
@@ -66,6 +65,7 @@ export function ExerciseRunner({ listId }: Props) {
       setAttemptId(start.attemptId);
       setTotalQuestions(start.totalQuestions);
       setCurrentQuestion(start.currentQuestion);
+      setAnsweredCount(start.correctCount ?? 0);
     } catch (e) {
       setError(messageFromUnknown(e) ?? "Não foi possível iniciar a lista.");
       setAttemptId(null);
@@ -140,6 +140,8 @@ export function ExerciseRunner({ listId }: Props) {
     }
   }
 
+  const progressPercent =
+    totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
   const progressText =
     totalQuestions > 0 ? `${answeredCount} de ${totalQuestions} questões acertadas` : "";
 
@@ -175,12 +177,22 @@ export function ExerciseRunner({ listId }: Props) {
           <Pressable hitSlop={12} className="rounded-lg px-2 py-2" onPress={goBackToLists}>
             <Text className="text-base font-medium text-slate-800">← Voltar</Text>
           </Pressable>
-          <View className="min-w-0 flex-1">
+          <View className="min-w-0 flex-1 px-1">
             <Text className="text-center text-sm font-semibold text-slate-900" numberOfLines={1}>
               {listTitle || "Lista"}
             </Text>
-            {progressText ? (
-              <Text className="text-center text-xs text-slate-600">{progressText}</Text>
+            {totalQuestions > 0 ? (
+              <View className="mt-1.5">
+                <View className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <View
+                    className="h-full rounded-full bg-indigo-600"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </View>
+                <Text className="mt-1 text-center text-xs text-slate-600">
+                  {progressPercent}% · {progressText}
+                </Text>
+              </View>
             ) : null}
           </View>
           <View className="w-14" />
