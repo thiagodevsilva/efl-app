@@ -30,6 +30,15 @@ export type ExerciseListLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
 export type ExerciseListStatus = "DRAFT" | "PUBLISHED";
 
+export type MasteryTier = "none" | "done" | "bronze" | "silver" | "gold" | "diamond";
+
+export type ExerciseListMyProgress = {
+  completionCount: number;
+  inProgress: boolean;
+  masteryTier: MasteryTier;
+  lastCompletedAt: string | null;
+};
+
 export type ExerciseList = {
   id: string;
   title: string;
@@ -42,6 +51,7 @@ export type ExerciseList = {
   createdAt: string;
   updatedAt: string;
   questions?: ExerciseListQuestion[];
+  myProgress?: ExerciseListMyProgress;
 };
 
 export type ExerciseListAttemptStart = {
@@ -68,6 +78,8 @@ export async function listExerciseLists(params: {
   level?: ExerciseListLevel;
   classId?: string;
   onlyMyClasses?: boolean;
+  sort?: "default" | "leastPracticed" | "notDoneFirst" | "mostPracticed" | "levelAsc";
+  progressFilter?: "all" | "notDone" | "inProgress" | "done";
   page?: number;
   limit?: number;
 } = {}) {

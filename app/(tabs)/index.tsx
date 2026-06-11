@@ -19,10 +19,20 @@ import {
   EXERCISE_LEVELS,
 } from "../../constants/exerciseLevels";
 import {
+  exerciseListCta,
+  MASTERY_TIER_COLORS,
+  MASTERY_TIER_LABELS,
+  PROGRESS_FILTER_OPTIONS,
+  SORT_OPTIONS,
+  type ExerciseListProgressFilter,
+  type ExerciseListSort,
+} from "../../constants/exerciseMastery";
+import {
   exerciseMediaUrl,
   listExerciseLists,
   type ExerciseList,
   type ExerciseListLevel,
+  type MasteryTier,
 } from "../../services/exercises";
 import { listMyCourses, type MyClassItem } from "../../services/classroom";
 
@@ -30,8 +40,47 @@ const PAGE_SIZE = 12;
 
 type LevelFilter = "" | ExerciseListLevel;
 
+function MasteryBadges({ item }: { item: ExerciseList }) {
+  const progress = item.myProgress;
+  if (!progress) return null;
+
+  const tier = progress.masteryTier;
+  const showTier = tier !== "none";
+  const tierStyle =
+    showTier && tier !== "none"
+      ? MASTERY_TIER_COLORS[tier as Exclude<MasteryTier, "none">]
+      : null;
+
+  if (!showTier && !progress.inProgress && progress.completionCount === 0) return null;
+
+  return (
+    <View className="mt-2 flex-row flex-wrap items-center gap-2">
+      {showTier && tierStyle ? (
+        <View className={`rounded-full px-2.5 py-1 ${tierStyle.bg}`}>
+          <Text className={`text-xs font-semibold ${tierStyle.text}`}>
+            {MASTERY_TIER_LABELS[tier as Exclude<MasteryTier, "none">]}
+          </Text>
+        </View>
+      ) : null}
+      {progress.inProgress ? (
+        <View className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1">
+          <Text className="text-xs font-medium text-sky-800">Em andamento</Text>
+        </View>
+      ) : null}
+      {progress.completionCount > 0 ? (
+        <Text className="text-xs text-slate-500">
+          Praticada {progress.completionCount}{" "}
+          {progress.completionCount === 1 ? "vez" : "vezes"}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 function ListCard({ item }: { item: ExerciseList }) {
   const coverUri = item.imagePath ? exerciseMediaUrl(item.imagePath) : null;
+  const cta = exerciseListCta(item.myProgress);
+  const ctaColor = item.myProgress?.inProgress ? "text-sky-600" : "text-indigo-600";
 
   return (
     <Pressable
@@ -68,6 +117,7 @@ function ListCard({ item }: { item: ExerciseList }) {
             </Text>
           </View>
         </View>
+        <MasteryBadges item={item} />
         <Text className="mt-3 text-lg font-semibold text-slate-900" numberOfLines={2}>
           {item.title}
         </Text>
@@ -77,8 +127,8 @@ function ListCard({ item }: { item: ExerciseList }) {
           </Text>
         ) : null}
         <View className="mt-4 flex-row items-center justify-between">
-          <Text className="text-sm font-medium text-indigo-600">Iniciar prática</Text>
-          <Text className="text-lg text-indigo-600">→</Text>
+          <Text className={`text-sm font-medium ${ctaColor}`}>{cta}</Text>
+          <Text className={`text-lg ${ctaColor}`}>→</Text>
         </View>
       </View>
     </Pressable>
@@ -92,6 +142,8 @@ export default function ExercisesScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOnlyMyClass, setFilterOnlyMyClass] = useState(false);
   const [classId, setClassId] = useState("");
+  const [sort, setSort] = useState<ExerciseListSort>("default");
+  const [progressFilter, setProgressFilter] = useState<ExerciseListProgressFilter>("all");
 
   const classesQuery = useQuery({
     queryKey: ["my-classes-for-exercises"],
@@ -107,7 +159,16 @@ export default function ExercisesScreen() {
   );
 
   const query = useQuery({
-    queryKey: ["exercise-lists", page, level, searchQuery, filterOnlyMyClass, classId],
+    queryKey: [
+      "exercise-lists",
+      page,
+      level,
+      searchQuery,
+      filterOnlyMyClass,
+      classId,
+      sort,
+      progressFilter,
+    ],
     queryFn: () =>
       listExerciseLists({
         page,
@@ -116,6 +177,8 @@ export default function ExercisesScreen() {
         ...(searchQuery.trim() ? { q: searchQuery.trim() } : {}),
         ...(filterOnlyMyClass && classId ? { classId } : {}),
         ...(filterOnlyMyClass && !classId ? { onlyMyClasses: true } : {}),
+        ...(sort !== "default" ? { sort } : {}),
+        ...(progressFilter !== "all" ? { progressFilter } : {}),
       }),
     placeholderData: keepPreviousData,
   });
@@ -126,6 +189,28 @@ export default function ExercisesScreen() {
     if (!meta?.total) return 1;
     return Math.max(1, Math.ceil(meta.total / (meta.limit || PAGE_SIZE)));
   }, [meta]);
+
+  const emptyMessage = useMemo(() => {
+    if (progressFilter === "notDone") {
+      return "Você já concluiu todas as listas visíveis. Ótimo trabalho!";
+    }
+    if (progressFilter === "inProgress") {
+      return "Nenhuma lista em andamento no momento.";
+    }
+    if (progressFilter === "done") {
+      return "Você ainda não concluiu nenhuma lista.";
+    }
+    if (filterOnlyMyClass && activeClasses.length === 0) {
+      return "Você não está em turmas ativas com exercícios vinculados.";
+    }
+    if (filterOnlyMyClass && classId) {
+      return "Nenhuma lista de exercícios para esta turma no momento.";
+    }
+    if (searchQuery.trim()) {
+      return "Nenhuma lista encontrada para esta busca.";
+    }
+    return "Nenhuma lista disponível no momento.";
+  }, [progressFilter, filterOnlyMyClass, activeClasses.length, classId, searchQuery]);
 
   const header = (
     <View className="pb-2 pt-1">
@@ -148,6 +233,66 @@ export default function ExercisesScreen() {
         autoCorrect={false}
         clearButtonMode="while-editing"
       />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="mt-3 pl-4"
+        contentContainerStyle={{ paddingRight: 16, gap: 8 }}
+      >
+        {SORT_OPTIONS.map((opt) => {
+          const selected = sort === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => {
+                setSort(opt.value);
+                setPage(1);
+              }}
+              className={`rounded-full px-4 py-2 ${
+                selected ? "bg-slate-800" : "border border-slate-200 bg-white"
+              }`}
+            >
+              <Text
+                className={`text-sm font-medium ${selected ? "text-white" : "text-slate-700"}`}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="mt-3 pl-4"
+        contentContainerStyle={{ paddingRight: 16, gap: 8 }}
+      >
+        {PROGRESS_FILTER_OPTIONS.map((opt) => {
+          const selected = progressFilter === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => {
+                setProgressFilter(opt.value);
+                setPage(1);
+              }}
+              className={`rounded-full px-4 py-2 ${
+                selected ? "bg-indigo-600" : "border border-slate-200 bg-white"
+              }`}
+            >
+              <Text
+                className={`text-sm font-medium ${selected ? "text-white" : "text-slate-700"}`}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <Text className="mt-2 px-4 text-xs leading-5 text-slate-400">
+        Maestria: Concluída (1–2x) · Bronze (3–5x) · Prata (6–8x) · Ouro (9–14x) · Diamante
+        (15x+)
+      </Text>
       <Pressable
         className="mx-4 mt-3 flex-row items-center gap-2"
         onPress={() => {
@@ -318,15 +463,7 @@ export default function ExercisesScreen() {
         ListFooterComponent={footer}
         ListEmptyComponent={
           <View className="mx-4 mt-4 rounded-2xl border border-slate-200 bg-white p-8">
-            <Text className="text-center text-base text-slate-600">
-              {filterOnlyMyClass && activeClasses.length === 0
-                ? "Você não está em turmas ativas com exercícios vinculados."
-                : filterOnlyMyClass && classId
-                  ? "Nenhuma lista de exercícios para esta turma no momento."
-                  : searchQuery.trim()
-                    ? "Nenhuma lista encontrada para esta busca."
-                    : "Nenhuma lista disponível no momento."}
-            </Text>
+            <Text className="text-center text-base text-slate-600">{emptyMessage}</Text>
           </View>
         }
         renderItem={({ item }) => <ListCard item={item} />}
